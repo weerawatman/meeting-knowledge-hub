@@ -3,21 +3,23 @@ from __future__ import annotations
 import math
 from typing import Iterable, List
 
+_model = None
+
+
+def _get_model():
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        _model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+    return _model
+
 
 def embed_text(text: str, dimension: int = 384) -> List[float]:
-    tokens = text.split()
-    if not tokens:
+    if not text or not text.strip():
         return [0.0] * dimension
-
-    vector = [0.0] * dimension
-    for index, token in enumerate(tokens):
-        vector[index % dimension] += len(token)
-
-    length = math.sqrt(sum(value * value for value in vector))
-    if length == 0:
-        return vector
-
-    return [value / length for value in vector]
+    model = _get_model()
+    vector = model.encode([text])[0].tolist()
+    return vector
 
 
 def cosine_similarity(a: Iterable[float], b: Iterable[float]) -> float:

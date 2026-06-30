@@ -28,6 +28,10 @@ dev = [
     "ruff>=0.0.296",
     "black>=24.3.0"
 ]
+demo = [
+    "faster-whisper>=1.0.0",
+    "sentence-transformers>=3.0.0",
+]
 
 [build-system]
 requires = ["setuptools>=65.0", "wheel"]
@@ -39,6 +43,7 @@ include = [
     "governance",
     "ingestion",
     "llm",
+    "pipeline",
     "rag",
     "speaker_id",
     "stt",

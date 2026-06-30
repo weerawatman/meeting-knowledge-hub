@@ -5,23 +5,40 @@ from typing import Dict, List
 
 from llm.models import ActionItem, DecisionItem, MeetingSummary
 from llm.prompting import build_summary_prompt, split_transcript
+from llm.summarize import summarize_transcript
 
 
 def generate_summary(transcript_text: str, meeting_id: str) -> MeetingSummary:
     chunks = split_transcript(transcript_text)
-    decisions: List[DecisionItem] = []
-    action_items: List[ActionItem] = []
+    all_decisions: List[DecisionItem] = []
+    all_action_items: List[ActionItem] = []
+    summaries: List[str] = []
+
     for chunk in chunks:
-        # Placeholder: actual inference would call an LLM service
-        decisions.append(DecisionItem(decision="Example decision", context=chunk[:100], speaker="SPEAKER_01"))
-        action_items.append(ActionItem(task="Example action item", assignee="Unknown", due=None))
+        result = summarize_transcript(chunk)
+        if result.get("summary"):
+            summaries.append(result["summary"])
+        for d in result.get("decisions", []):
+            all_decisions.append(DecisionItem(
+                decision=d.get("decision", ""),
+                context=d.get("context", ""),
+                speaker=d.get("speaker", "UNKNOWN"),
+            ))
+        for a in result.get("action_items", []):
+            all_action_items.append(ActionItem(
+                task=a.get("task", ""),
+                assignee=a.get("assignee", "UNKNOWN"),
+                due=a.get("due"),
+            ))
+
+    combined_summary = " ".join(summaries) if summaries else transcript_text[:300]
 
     return MeetingSummary(
         meeting_id=meeting_id,
-        summary="This is a placeholder summary.",
-        decisions=decisions,
-        action_items=action_items,
-        transcript=[{"speaker": "SPEAKER_01", "text": transcript_text, "timestamp": "00:00:00"}],
+        summary=combined_summary,
+        decisions=all_decisions,
+        action_items=all_action_items,
+        transcript=[{"speaker": "UNKNOWN", "text": transcript_text, "timestamp": "00:00:00"}],
     )
 
 

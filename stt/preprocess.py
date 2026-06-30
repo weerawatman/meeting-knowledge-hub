@@ -1,12 +1,26 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, List, Optional
+
+
+def _ffmpeg_available() -> bool:
+    return shutil.which("ffmpeg") is not None
 
 
 def normalize_audio(input_path: Path, output_path: Path, sample_rate: int = 16000) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    if not _ffmpeg_available():
+        if input_path.suffix.lower() == ".wav":
+            shutil.copy2(input_path, output_path)
+            return output_path
+        raise RuntimeError(
+            "FFmpeg is not available for audio normalization. "
+            "Provide a WAV file or install ffmpeg."
+        )
+
     command = [
         "ffmpeg",
         "-y",
@@ -22,9 +36,12 @@ def normalize_audio(input_path: Path, output_path: Path, sample_rate: int = 1600
     return output_path
 
 
-def chunk_audio(input_path: Path, output_dir: Path, chunk_duration_seconds: int = 600) -> list[Path]:
+def chunk_audio(input_path: Path, output_dir: Path, chunk_duration_seconds: int = 600) -> List[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    files = []
+    if not _ffmpeg_available():
+        return [input_path]
+
+    files: List[Path] = []
     index = 0
     while True:
         chunk_file = output_dir / f"chunk_{index:03d}.wav"

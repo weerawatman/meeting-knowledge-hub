@@ -21,7 +21,7 @@ class DocumentEntry(SQLModel, table=True):
     meeting_id: str = Field(index=True)
     document_id: str = Field(index=True)
     content: str
-    metadata: Optional[str] = None
+    metadata_json: Optional[str] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 

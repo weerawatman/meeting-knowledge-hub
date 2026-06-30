@@ -9,6 +9,7 @@ venv/
 *.log
 *.tmp
 temp_storage/
+data/
 node_modules/
 .idea/
 .vscode/

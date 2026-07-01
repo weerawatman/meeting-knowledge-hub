@@ -84,8 +84,24 @@ meetingsRouter.post("/:id/corrections", verifyJWT, (_req: Request, res: Response
   res.json({ status: "ok", message: "Corrections coming in Sprint 5" });
 });
 
-// GET /api/meetings — list from DB (stub)
+// GET /api/meetings — demo list (replace with PostgreSQL in Sprint 6)
 meetingsRouter.get("/", verifyJWT, (_req: Request, res: Response): void => {
-  // TODO: query PostgreSQL meetings table
-  res.json({ meetings: [], message: "PostgreSQL listing coming in Sprint 6" });
+  res.json({
+    meetings: [
+      {
+        id: "demo-1",
+        title: "Q3 Strategy & AI Platform Budget Review",
+        status: "done",
+        created_at: "2026-07-01T09:00:00Z",
+        duration_sec: 3240,
+      },
+      {
+        id: "demo-2",
+        title: "Infrastructure Planning — GPU Server",
+        status: "done",
+        created_at: "2026-06-28T14:30:00Z",
+        duration_sec: 1800,
+      },
+    ],
+  });
 });

@@ -1,22 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-_model = None
-
-
-def _get_model(model_name: str = "small"):
-    global _model
-    if _model is None:
-        from faster_whisper import WhisperModel
-        _model = WhisperModel(model_name, device="cpu", compute_type="int8")
-    return _model
+from stt.model_manager import get_whisper_model
 
 
 def transcribe_whisper(audio_path: Path, model_name: str = "small") -> Dict[str, Any]:
-    """Transcribe audio using faster-whisper. Returns transcript text, language, and segments."""
-    model = _get_model(model_name)
+    """Transcribe audio using faster-whisper via model_manager (VRAM-aware)."""
+    model = get_whisper_model(model_name)
     segments_iter, info = model.transcribe(
         str(audio_path),
         beam_size=5,

@@ -1,171 +1,59 @@
-# 🏗️ System Architecture
-## Meeting Knowledge Hub (On-Prem AI Meeting Intelligence System)
+# System Architecture Document
+## Meeting Knowledge Hub — Unified (Private AI Pipeline)
 
 ---
 
-## 1. High-Level Architecture
+## 1. High-Level Architecture Diagram (Microservices)
 
-The system is designed as a fully **On-Premise, batch-processing pipeline**:
+ระบบทำงานบนสถาปัตยกรรม **Private AI Pipeline** แบ่งหน้าที่ชัดเจนระหว่างการจัดการฝั่ง Web (Node.js) และการจัดการ GPU (Python Worker):
 
-1. Ingestion Layer
-2. Processing Pipeline (STT + Speaker ID)
-3. AI Intelligence Layer (LLM)
-4. Knowledge Layer (RAG)
-5. Application Layer (UI / API)
-6. Governance Layer (Security + Retention)
-
----
-
-## 2. Architecture Components
-
-### 2.1 Ingestion Layer
-- Source: Microsoft Teams Recording (post-meeting)
-- Mode: Batch ingestion (not real-time)
-- Input:
-  - Audio file
-  - Video file (optional)
-
----
-
-### 2.2 Processing Pipeline
-
-#### Speech-to-Text (STT)
-- Converts audio → transcript
-- High accuracy prioritized over speed
-
-#### Speaker Identification
-- Voice fingerprinting
-- Clustering + speaker mapping
-- Target accuracy: ≥90%
+```
++-------------------------------------------------------------------------+
+|                        1. Application & Ingestion Layer                 |
+| [React Frontend (IndexedDB)]    [MS Teams Bot Ingress (Audio Streams)]  |
++-------------------------------------------------------------------------+
+                                 | (WebSockets / HTTP)
+                                 v
++-------------------------------------------------------------------------+
+|                        2. Core Backend Service (Node.js)                |
+| [Auth & RBAC] <--> [Data Orchestrator] <--> [Connection Manager]        |
+|       |                                               |                 |
+|       +--> (DB Queries)                               +--> (AI Tasks)   |
++-------|-----------------------------------------------|-----------------+
+        v                                               v
++------------------------------+       +----------------------------------+
+| 3. Knowledge Layer (DBs)     |       | 4. AI Worker Service (Python)    |
+| [PostgreSQL (Metadata)]      |       | [VRAM Priority Orchestrator]     |
+| [Qdrant (Vector DB)]         |       | [Whisper STT (GPU)]              |
+|                              |       | [LLaMA 3.1 8B (GPU via Ollama)]  |
+|                              |       | [bge-m3 Embedding (CPU)]         |
++------------------------------+       +----------------------------------+
+```
 
 ---
 
-### 2.3 AI Intelligence Layer
+## 2. Component Detailed Design
 
-#### LLM Processing
-- Model: Open-source (LLaMA / Mistral)
-- Tasks:
-  - Summarization
-  - Key decision extraction
-  - Action item extraction
+### 2.1 Application & Core Backend (React + Node.js)
 
-#### Output Format (Semi-Structured)
-- Summary
-- Decisions
-- Action Items
-- Speaker-attributed transcript
+- **React SPA:** รองรับ 5 โมดูลหน้าจอ ใช้ `IndexedDB` เป็น Offline-first Buffer สำรองข้อมูลเสียง Live Capture หากเครือข่ายหลุด
 
----
+- **Node.js Main API:**
+  - ทำหน้าที่เป็นตัวรับ Ingress Stream ขาเข้าจาก MS Teams
+  - จัดการ Concurrency และ WebSockets สำหรับ Live Transcript
+  - จัดการ Category-Based Security (อ่านสิทธิ์ JWT Token ส่งไปเป็น Filter ให้ Qdrant)
+  - เป็นตัวกลางส่งคิวงานหนัก (Audio File, Document Text) ผ่าน Message Broker หรือ Local HTTP ไปให้ Python Worker
 
-### 2.4 Knowledge Layer (RAG)
+### 2.2 AI Worker Service (Python GPU Manager)
 
-#### Storage
-- Vector database (embeddings)
-- Metadata store
-- Document store
+ออกแบบมาแก้ปัญหา VRAM 8GB (เช่น RTX 4060):
 
-#### Data Stored
-- Processed knowledge
-- Embeddings
-- Metadata
-- Feedback dataset
+- **Model Lifecycle Orchestrator:** ควบคุมการเคลียร์ Memory (`torch.cuda.empty_cache()`) อย่างเข้มงวด ทำงานแบบ Sequential Loading
+- **Priority Queue:** รับคำสั่งจาก Node.js หากเป็น Live Capture จะจอง VRAM ให้ Whisper ทันที หากเป็น Batch/Digest จะรันเมื่อ GPU ว่าง
+- **Map-Reduce Agent:** ทำ Two-pass Executive Digest โดยวิเคราะห์แยกชิ้น (Pass 1) และรวมข้อมูลอิงตาม Metadata (Pass 2)
 
-#### Data NOT Stored
-- Raw audio/video (deleted after 30 days)
+### 2.3 Knowledge & Governance Layer
 
----
-
-### 2.5 Application Layer
-
-#### API Layer
-- Query knowledge
-- Submit corrections
-- Retrieve summaries
-
-#### UI Layer
-- Search interface
-- Meeting viewer
-- Editing interface
-
----
-
-### 2.6 Governance Layer
-
-#### Security
-- On-prem only
-- Role-based access control
-- Audit logging
-
-#### Data Retention
-- Auto-delete raw files after 30 days
-- Retain processed knowledge
-
----
-
-## 3. Data Flow
-
-1. Meeting ends → recording generated
-2. File ingested into system
-3. STT processes audio → transcript
-4. Speaker ID assigns speakers
-5. LLM generates structured summary
-6. Data stored in RAG system
-7. User accesses via UI/API
-8. User edits → feedback stored
-
----
-
-## 4. Key Design Decisions
-
-- Batch processing (not real-time)
-- Accuracy prioritized over latency
-- Hybrid human-in-the-loop system
-- Privacy-first (On-prem + data deletion)
-- Learning system via feedback loop
-
----
-
-## 5. Infrastructure Requirements
-
-### Compute
-- GPU (for STT + LLM)
-- CPU (pipeline orchestration)
-
-### Storage
-- Secure file storage (temporary)
-- Vector DB
-- Metadata DB
-
-### Networking
-- Internal-only access
-- No external API calls
-
----
-
-## 6. Failure Handling
-
-- If STT fails → retry
-- If Speaker ID fails → fallback (no speaker tagging)
-- If LLM fails → simple summary
-- Logging + monitoring required
-
----
-
-## 7. Future Extensions
-
-- Real-time processing
-- Multi-language support
-- Cross-meeting analytics
-- Advanced knowledge graph
-
----
-
-## 8. Summary
-
-System converts:
-Raw Meeting Data → Processed Knowledge → Searchable Intelligence
-
-With:
-- Privacy (On-prem)
-- Intelligence (AI)
-- Memory (RAG)
+- **Atomic Sync:** Node.js สั่งอัปเดต PostgreSQL และ Qdrant พร้อมกัน
+- **Anonymized Golden Vault:** สคริปต์ Node/Python ทำหน้าที่ Masking ข้อมูล PII เก็บเป็น Ground Truth ทดสอบ Prompt
+- **30-Day Auto Delete:** ลบ raw file อัตโนมัติตามนโยบายองค์กร

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import httpx
 
@@ -10,6 +10,28 @@ from llm.prompting import build_summary_json_prompt
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
+
+
+def _call_ollama(prompt: str, format_json: bool = False) -> Optional[str]:
+    """Low-level Ollama call. Returns raw content string or None on failure."""
+    try:
+        payload: Dict[str, Any] = {
+            "model": OLLAMA_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+            "options": {"temperature": 0.1},
+        }
+        if format_json:
+            payload["format"] = "json"
+        response = httpx.post(
+            f"{OLLAMA_HOST}/api/chat",
+            json=payload,
+            timeout=120.0,
+        )
+        response.raise_for_status()
+        return response.json()["message"]["content"]
+    except (httpx.ConnectError, httpx.ConnectTimeout, httpx.HTTPError, KeyError):
+        return None
 
 
 def summarize_transcript(transcript: str) -> Dict[str, Any]:

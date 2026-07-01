@@ -1,0 +1,107 @@
+services:
+  # ─── Infrastructure ─────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: meeting_hub
+      POSTGRES_USER: mhub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mhub_dev_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mhub -d meeting_hub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Python AI Worker (internal only) ────────────────────────────────────────
+  worker:
+    build:
+      context: ./worker-python
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
+      # Ollama runs on host machine — access via host.docker.internal
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      DATA_DIR: /app/data
+      DATABASE_URL: sqlite:////app/data/meeting_hub.db
+      QDRANT_URL: http://qdrant:6333
+    volumes:
+      - worker_data:/app/data
+    networks:
+      - internal
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    # Worker is NOT exposed to the public network
+    expose:
+      - "8001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ─── Node.js Core API (public-facing) ────────────────────────────────────────
+  api:
+    build:
+      context: ./backend-node
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_production}
+      WORKER_URL: http://worker:8001
+      DATABASE_URL: postgresql://mhub:${POSTGRES_PASSWORD:-mhub_dev_secret}@postgres:5432/meeting_hub
+      QDRANT_URL: http://qdrant:6333
+    ports:
+      - "3001:3001"
+    networks:
+      - internal
+      - public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      worker:
+        condition: service_started
+
+  # ─── React Frontend ────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:3001
+    ports:
+      - "5173:5173"
+    networks:
+      - public
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  worker_data:
+
+networks:
+  internal:
+    driver: bridge
+  public:
+    driver: bridge

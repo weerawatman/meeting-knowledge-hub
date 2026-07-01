@@ -11,6 +11,12 @@ venv/
 temp_storage/
 data/
 node_modules/
+dist/
 .idea/
 .vscode/
 .DS_Store
+# Frontend build
+frontend/dist/
+# Docker volumes
+postgres_data/
+qdrant_data/

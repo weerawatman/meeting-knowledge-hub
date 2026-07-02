@@ -20,3 +20,5 @@ frontend/dist/
 # Docker volumes
 postgres_data/
 qdrant_data/
+# Claude Code local settings (may contain API keys)
+.claude/

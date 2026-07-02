@@ -12,7 +12,7 @@ COPY pyproject.toml .
 RUN pip install --no-cache-dir -e ".[demo]"
 
 # Copy source
-COPY . .
+COPY src/ ./src/
 
 # Create data dirs
 RUN mkdir -p data/uploads data/results data/workdir

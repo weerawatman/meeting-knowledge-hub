@@ -1,0 +1,21 @@
+# Local development overrides — not committed to production
+# docker compose up will automatically merge this file
+services:
+  worker:
+    volumes:
+      - ./services/ai-worker/src:/app/src:ro  # live reload for Python
+    environment:
+      RELOAD: "true"
+    command: ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+
+  api:
+    volumes:
+      - ./apps/api/src:/app/src:ro  # live reload via ts-node-dev
+    environment:
+      NODE_ENV: development
+
+  frontend:
+    volumes:
+      - ./apps/web/src:/app/src:ro
+    environment:
+      VITE_API_URL: http://localhost:3001

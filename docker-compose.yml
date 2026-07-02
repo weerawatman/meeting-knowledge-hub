@@ -33,7 +33,7 @@ services:
   # ─── Python AI Worker (internal only) ────────────────────────────────────────
   worker:
     build:
-      context: ./worker-python
+      context: ./services/ai-worker
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
@@ -60,7 +60,7 @@ services:
   # ─── Node.js Core API (public-facing) ────────────────────────────────────────
   api:
     build:
-      context: ./backend-node
+      context: ./apps/api
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
@@ -83,7 +83,7 @@ services:
   # ─── React Frontend ────────────────────────────────────────────────────────
   frontend:
     build:
-      context: ./frontend
+      context: ./apps/web
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:

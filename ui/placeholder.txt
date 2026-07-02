@@ -1,3 +1,0 @@
-Meeting Knowledge Hub UI placeholder.
-
-Phase 6 frontend UI is not implemented yet. This repository currently exposes the API layer and backend pipeline scaffolding.

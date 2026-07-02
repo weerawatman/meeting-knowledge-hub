@@ -3,7 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 
 const NAV_ITEMS = [
   { to: "/meetings", label: "Meeting Knowledge", icon: "🎙️" },
-  { to: "/live", label: "Live Capture", icon: "🔴" },
+  { to: "/live", label: "SAT Secretary BOT", icon: "SAT" },
   { to: "/digest", label: "Executive Digest", icon: "📄" },
   { to: "/chat", label: "Knowledge Chat", icon: "💬" },
   { to: "/studio", label: "Prompt Studio", icon: "⚙️" },

@@ -7,12 +7,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps
+# Copy source before editable install
 COPY pyproject.toml .
-RUN pip install --no-cache-dir -e ".[demo]"
-
-# Copy source
 COPY src/ ./src/
+ARG INSTALL_EXTRAS=""
+RUN if [ -n "$INSTALL_EXTRAS" ]; then \
+      pip install --no-cache-dir -e ".[${INSTALL_EXTRAS}]"; \
+    else \
+      pip install --no-cache-dir -e .; \
+    fi
 
 # Create data dirs
 RUN mkdir -p data/uploads data/results data/workdir

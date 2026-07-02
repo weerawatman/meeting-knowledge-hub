@@ -8,6 +8,7 @@ import { authRouter } from "./routes/auth";
 import { meetingsRouter } from "./routes/meetings";
 import { digestRouter } from "./routes/digest";
 import { chatRouter } from "./routes/chat";
+import { teamsAiRouter } from "./routes/teamsAi";
 import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
@@ -29,6 +30,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/meetings", meetingsRouter);
 app.use("/api/digest", digestRouter);
 app.use("/api/chat", chatRouter);
+app.use("/api/teams-ai", teamsAiRouter);
 
 // ── WebSocket — Live Capture ──────────────────────────────────────────────────
 io.on("connection", (socket) => {
